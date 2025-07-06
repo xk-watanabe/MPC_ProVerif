@@ -1,0 +1,119 @@
+set attacker = passive.
+free c: channel.
+free p1_p2:channel.
+free p1_p3:channel.
+free p2_p3:channel.
+
+(* secret sharing *)
+type unshare.
+type share.
+fun share1(unshare): share.
+fun share2(unshare): share.
+fun share3(unshare): share.
+letfun secretsharing(s:unshare) = (share1(s),share2(s),share3(s)).
+
+(* property of linear secret sharing *)
+fun addition(unshare,unshare): unshare.
+fun addition_share(share,share): share.
+fun addition_share_unshare(share,unshare): share.
+fun subtraction(unshare,unshare): unshare.
+fun subtraction_share(share,share): share.
+fun multiplication(unshare,unshare): unshare.
+fun multiplication_share_unshare(share,unshare): share.
+
+(* beaver triple *)
+type coins.
+fun create_triple1(coins): unshare.
+fun create_triple2(coins): unshare.
+fun create_triple3(coins): unshare.
+letfun create_triple() =
+    new r: coins;
+    (create_triple1(r),create_triple2(r),create_triple3(r)).
+
+equation
+    forall e,f:unshare; addition(f,subtraction(e,f)) = e;
+    forall g,h:unshare; addition_share_unshare(share1(g),h) = share1(addition(g,h));
+    forall i,j:unshare; addition_share_unshare(share2(i),j) = share2(addition(i,j));
+    forall k,l:unshare; addition_share_unshare(share3(k),l) = share3(addition(k,l));
+    forall m,n:unshare; addition_share(share1(m),share1(n)) = share1(addition(m,n));
+    forall o,p:unshare; addition_share(share2(o),share2(p)) = share2(addition(o,p));
+    forall q,r:unshare; addition_share(share3(q),share3(r)) = share3(addition(q,r));
+    forall s,t:unshare; multiplication_share_unshare(share1(s),t) = share1(multiplication(s,t));
+    forall u,v:unshare; multiplication_share_unshare(share2(u),v) = share2(multiplication(u,v));
+    forall w,x:unshare; multiplication_share_unshare(share3(w),x) = share3(multiplication(w,x));
+    forall y,z:unshare; subtraction_share(share1(y),share1(z)) = share1(subtraction(y,z));
+    forall aa,ab:unshare; subtraction_share(share2(aa),share2(ab)) = share2(subtraction(aa,ab));
+    forall ac,ad:unshare; subtraction_share(share3(ac),share3(ad)) = share3(subtraction(ac,ad));
+    forall ae:coins; create_triple3(ae) = multiplication(create_triple1(ae),create_triple2(ae))
+    .
+
+fun recon(share,share,share): unshare
+    reduc forall v,w:unshare, r:coins;
+        recon(
+            addition_share(addition_share(share1(create_triple3(r)),multiplication_share_unshare(share1(create_triple2(r)),subtraction(v,create_triple1(r)))),
+                addition_share_unshare(multiplication_share_unshare(share1(create_triple1(r)),subtraction(w,create_triple2(r))),multiplication(subtraction(v,create_triple1(r)),subtraction(w,create_triple2(r))))),
+            addition_share(addition_share(share2(create_triple3(r)),multiplication_share_unshare(share2(create_triple2(r)),subtraction(v,create_triple1(r)))),
+                addition_share_unshare(multiplication_share_unshare(share2(create_triple1(r)),subtraction(w,create_triple2(r))),multiplication(subtraction(v,create_triple1(r)),subtraction(w,create_triple2(r))))),
+            addition_share(addition_share(share3(create_triple3(r)),multiplication_share_unshare(share3(create_triple2(r)),subtraction(v,create_triple1(r)))),
+                addition_share_unshare(multiplication_share_unshare(share3(create_triple1(r)),subtraction(w,create_triple2(r))),multiplication(subtraction(v,create_triple1(r)),subtraction(w,create_triple2(r)))))
+        )
+        =multiplication(v,w)
+    otherwise forall x:unshare; recon(share1(x),share2(x),share3(x))=x.
+
+free x_1: unshare[private].
+free x_2: unshare[private].
+query attacker(x_1).
+query attacker(x_2).
+query attacker(multiplication(x_1,x_2)).
+    
+let p1(a_1:share,b_1:share,c_1:share)=
+    (* Calculate x_1*x_2 on share *)
+    let ep_share_1 = subtraction_share(share1(x_1),a_1) in
+    let del_share_1 = subtraction_share(share1(x_2),b_1) in
+    out(p1_p2,(ep_share_1,del_share_1));
+    out(p1_p3,(ep_share_1,del_share_1));
+    in(p1_p2,(ep_share_2:share,del_share_2:share));
+    in(p1_p3,(ep_share_3:share,del_share_3:share));
+    let ep = recon(ep_share_1,ep_share_2,ep_share_3) in
+    let del = recon(del_share_1,del_share_2,del_share_3) in
+    let z_share_1 = addition_share(addition_share(c_1,multiplication_share_unshare(b_1,ep)),addition_share_unshare(multiplication_share_unshare(a_1,del),multiplication(ep,del))) in
+    out(c,z_share_1).
+
+let p2(a_2:share,b_2:share,c_2:share)=
+    (* Calculate x_1*x_2 on share *)
+    let ep_share_2 = subtraction_share(share2(x_1),a_2) in
+    let del_share_2 = subtraction_share(share2(x_2),b_2) in
+    out(p1_p2,(ep_share_2,del_share_2));
+    out(p2_p3,(ep_share_2,del_share_2));
+    in(p1_p2,(ep_share_1:share,del_share_1:share));
+    in(p2_p3,(ep_share_3:share,del_share_3:share));
+    let ep = recon(ep_share_1,ep_share_2,ep_share_3) in
+    let del = recon(del_share_1,del_share_2,del_share_3) in
+    let z_share_2 = addition_share(addition_share(c_2,multiplication_share_unshare(b_2,ep)),addition_share_unshare(multiplication_share_unshare(a_2,del),multiplication(ep,del))) in
+    out(c,z_share_2).
+
+let p3(a_3:share,b_3:share,c_3:share)=
+    (* Calculate x_1*x_2 on share *)
+    let ep_share_3 = subtraction_share(share3(x_1),a_3) in
+    let del_share_3 = subtraction_share(share3(x_2),b_3) in
+    out(p1_p3,(ep_share_3,del_share_3));
+    out(p2_p3,(ep_share_3,del_share_3));
+    in(p1_p3,(ep_share_1:share,del_share_1:share));
+    in(p2_p3,(ep_share_2:share,del_share_2:share));
+    let ep = recon(ep_share_1,ep_share_2,ep_share_3) in
+    let del = recon(del_share_1,del_share_2,del_share_3) in
+    let z_share_3 = addition_share(addition_share(c_3,multiplication_share_unshare(b_3,ep)),addition_share_unshare(multiplication_share_unshare(a_3,del),multiplication(ep,del))) in
+    out(c,z_share_3).
+
+process
+    let (a:unshare,b:unshare,c:unshare) = create_triple() in
+    let (a_1:share,a_2:share,a_3:share) = secretsharing(a) in
+    let (b_1:share,b_2:share,b_3:share) = secretsharing(b) in
+    let (c_1:share,c_2:share,c_3:share) = secretsharing(c) in
+    (
+        p1(a_1,b_1,c_1)
+        |
+        p2(a_2,b_2,c_2)
+        |
+        p3(a_3,b_3,c_3)
+    )
