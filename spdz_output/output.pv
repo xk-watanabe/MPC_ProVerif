@@ -52,7 +52,7 @@ event commitment_1(share).
 event commitment_2(share).
 event commitment_3(share).
 query x:unshare; (event(end_1(x)) && event(end_2(x)) && event(end_3(x))) ==> (event(commitment_1(share1(x))) && event(commitment_2(share2(x))) && event(commitment_3(share3(x)))).
-query x:unshare; (event(end_2(x)) && event(end_3(x))) ==> event(commitment_1(share1(x))).
+query x:unshare; event(end_1(x)) ==> event(commitment_2(share2(x))) && event(commitment_3(share3(x))).
 
 let p1(y_1:share, m_1:share, alpha_1:share)=
     out(p1_p2,y_1);
